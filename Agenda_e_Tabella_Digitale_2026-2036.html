@@ -1,0 +1,637 @@
+<!DOCTYPE html>
+<html lang="it" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tabella Digitale 2026-2036 Cloud</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#eef2ff',
+                            100: '#e0e7ff',
+                            500: '#6366f1',
+                            600: '#4f46e5',
+                            700: '#4338ca',
+                            900: '#312e81',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- FontAwesome per le icone -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #0f172a;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #334155;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #475569;
+        }
+        .highlight-current-hour {
+            box-shadow: inset 4px 0 0 #6366f1, 0 0 15px rgba(99, 102, 241, 0.15);
+        }
+    </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen font-sans antialiased flex flex-col">
+
+    <!-- Header / Navbar -->
+    <header class="bg-slate-900 border-b border-slate-800 sticky top-0 z-30 shadow-lg">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
+            <!-- Logo & Titolo -->
+            <div class="flex items-center space-x-3">
+                <div class="p-2 bg-brand-600/20 text-brand-500 rounded-lg border border-brand-500/30">
+                    <i class="fa-solid fa-calendar-days text-xl"></i>
+                </div>
+                <div>
+                    <h1 class="font-bold text-lg leading-tight tracking-wide text-white">Tabella Digitale Cloud</h1>
+                    <p class="text-xs text-slate-400">Pianificazione H24 (2026 - 2036)</p>
+                </div>
+            </div>
+
+            <!-- Stato Modalità e Pulsante Sblocco -->
+            <div class="flex items-center space-x-3">
+                <div id="statusBadge" class="hidden sm:flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                    <i class="fa-solid fa-lock mr-1.5"></i> Solo Lettura
+                </div>
+                
+                <button id="authBtn" onclick="toggleAuthModal()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-lg text-sm font-medium transition flex items-center gap-2 shadow-sm">
+                    <i id="authBtnIcon" class="fa-solid fa-key text-amber-400"></i>
+                    <span id="authBtnText">Sblocca Modifica</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content Container -->
+    <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 flex flex-col gap-6">
+
+        <!-- Bar di Controllo e Navigazione Data -->
+        <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 shadow-sm flex flex-col lg:flex-row items-center justify-between gap-4">
+            
+            <!-- Controlli Data -->
+            <div class="flex flex-wrap items-center justify-center sm:justify-start gap-2 w-full lg:w-auto">
+                <button onclick="changeDate(-1)" class="p-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg border border-slate-700 transition" title="Giorno precedente">
+                    <i class="fa-solid fa-chevron-left"></i>
+                </button>
+                <button onclick="goToToday()" class="px-3 py-2 bg-brand-600/20 text-brand-400 hover:bg-brand-600/30 border border-brand-500/30 rounded-lg text-sm font-medium transition">
+                    Oggi
+                </button>
+                <button onclick="changeDate(1)" class="p-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg border border-slate-700 transition" title="Giorno successivo">
+                    <i class="fa-solid fa-chevron-right"></i>
+                </button>
+
+                <!-- Input Data con limiti 2026-2036 -->
+                <div class="relative flex-1 sm:flex-none">
+                    <input type="date" id="datePicker" min="2026-01-01" max="2036-12-31" onchange="onDateInputChange(event)"
+                           class="w-full bg-slate-950 border border-slate-700 text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-brand-500 transition">
+                </div>
+            </div>
+
+            <!-- Titolo Data Corrente -->
+            <div class="text-center">
+                <h2 id="currentDateDisplay" class="text-xl font-bold text-slate-100 tracking-wide">
+                    -
+                </h2>
+                <p id="currentDayOfWeek" class="text-xs text-brand-400 uppercase tracking-widest font-medium mt-0.5">-</p>
+            </div>
+
+            <!-- Strumenti Ricerca ed Esportazione -->
+            <div class="flex items-center justify-end gap-2 w-full lg:w-auto">
+                <div class="relative w-full sm:w-48">
+                    <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-xs"></i>
+                    <input type="text" id="searchInput" onkeyup="handleSearch()" placeholder="Cerca note..." 
+                           class="w-full bg-slate-950 border border-slate-700 text-slate-200 text-xs rounded-lg pl-8 pr-3 py-2 focus:outline-none focus:border-brand-500 transition">
+                </div>
+
+                <div class="relative group">
+                    <button class="p-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg border border-slate-700 transition" title="Opzioni dati">
+                        <i class="fa-solid fa-ellipsis-vertical"></i>
+                    </button>
+                    <div class="absolute right-0 mt-2 w-48 bg-slate-900 border border-slate-800 rounded-xl shadow-xl hidden group-hover:block group-focus-within:block z-20 py-1">
+                        <button onclick="exportData()" class="w-full text-left px-4 py-2 text-xs text-slate-300 hover:bg-slate-800 flex items-center gap-2">
+                            <i class="fa-solid fa-download text-brand-400"></i> Esporta Backup (JSON)
+                        </button>
+                        <hr class="border-slate-800 my-1">
+                        <button id="clearDayBtn" onclick="clearCurrentDay()" class="w-full text-left px-4 py-2 text-xs text-rose-400 hover:bg-slate-800 flex items-center gap-2 opacity-50 cursor-not-allowed" disabled>
+                            <i class="fa-solid fa-trash"></i> Svuota Questo Giorno
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tabella Oraria (24 Ore) -->
+        <div class="bg-slate-900 border border-slate-800 rounded-xl shadow-xl overflow-hidden flex-1">
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse min-w-[640px]">
+                    <thead>
+                        <tr class="bg-slate-950/80 border-b border-slate-800 text-xs font-semibold text-slate-400 uppercase tracking-wider">
+                            <th class="py-3.5 px-4 w-28 text-center border-r border-slate-800/80">Ora</th>
+                            <th class="py-3.5 px-4">Evento / Nota principali</th>
+                            <th class="py-3.5 px-4 w-1/4">Assegnato a / Dettagli</th>
+                            <th class="py-3.5 px-4 w-40 text-center">Stato</th>
+                            <th id="actionsHeader" class="py-3.5 px-4 w-16 text-center hidden">Azione</th>
+                        </tr>
+                    </thead>
+                    <tbody id="scheduleTableBody" class="divide-y divide-slate-800/60 text-sm">
+                        <!-- Contenuto dinamico -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Modal Autenticazione (PIN predefinito: leovincenzo11) -->
+    <div id="authModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 hidden">
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 max-w-md w-full shadow-2xl relative">
+            <button onclick="closeAuthModal()" class="absolute top-4 right-4 text-slate-500 hover:text-slate-300 transition">
+                <i class="fa-solid fa-xmark text-lg"></i>
+            </button>
+            
+            <div class="text-center mb-6">
+                <div class="w-12 h-12 bg-brand-600/20 text-brand-500 rounded-full flex items-center justify-center mx-auto mb-3 border border-brand-500/30">
+                    <i class="fa-solid fa-shield-halved text-xl"></i>
+                </div>
+                <h3 id="modalTitle" class="text-lg font-bold text-white">Accesso Autorizzato</h3>
+                <p id="modalSub" class="text-xs text-slate-400 mt-1">Inserisci la tua parola d'ordine/PIN per modificare</p>
+            </div>
+
+            <form onsubmit="handleAuthSubmit(event)" class="space-y-4">
+                <div>
+                    <label for="pinInput" class="block text-xs font-medium text-slate-400 mb-1">PIN o Password Amministratore</label>
+                    <input type="password" id="pinInput" maxlength="30" required placeholder="Inserisci PIN"
+                           class="w-full bg-slate-950 border border-slate-700 text-white rounded-lg px-4 py-2.5 text-center text-lg focus:outline-none focus:border-brand-500 transition">
+                </div>
+
+                <div id="modalError" class="text-rose-400 text-xs text-center font-medium hidden">
+                    PIN errato. Riprova.
+                </div>
+
+                <div class="flex gap-3 pt-2">
+                    <button type="button" onclick="closeAuthModal()" class="flex-1 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-sm font-medium transition">
+                        Annulla
+                    </button>
+                    <button type="submit" class="flex-1 py-2.5 bg-brand-600 hover:bg-brand-500 text-white rounded-lg text-sm font-medium transition shadow-md shadow-brand-600/20">
+                        Conferma
+                    </button>
+                </div>
+            </form>
+
+            <div id="changePinOption" class="mt-4 pt-4 border-t border-slate-800 text-center hidden">
+                <button onclick="toggleChangePinMode()" class="text-xs text-brand-400 hover:text-brand-300 font-medium">
+                    Desideri cambiare la password/PIN attuale?
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notification Toast -->
+    <div id="toast" class="fixed bottom-5 right-5 bg-slate-900 border border-slate-700 text-slate-200 px-4 py-3 rounded-xl shadow-2xl flex items-center gap-3 transition-all duration-300 transform translate-y-20 opacity-0 z-50">
+        <i id="toastIcon" class="fa-solid fa-circle-check text-emerald-400"></i>
+        <span id="toastMessage" class="text-sm font-medium">Operazione completata</span>
+    </div>
+
+    <!-- Firebase Script Integrato per la Sincronizzazione Cloud in Tempo Reale -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Inizializzazione Configurazione Firebase
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'agenda-h24-app';
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {
+            apiKey: "demo-api-key",
+            authDomain: "demo-app.firebaseapp.com",
+            projectId: "demo-app",
+            storageBucket: "demo-app.appspot.com",
+            messagingSenderId: "123456789",
+            appId: "1:123456789:web:abcdef"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        // PIN Predefinito impostato a: leovincenzo11
+        const STORAGE_KEY_PIN = 'agenda_2026_2036_pin';
+        const DEFAULT_PIN = 'leovincenzo11';
+
+        let currentDate = new Date();
+        if (currentDate.getFullYear() < 2026) {
+            currentDate = new Date('2026-01-01T00:00:00');
+        } else if (currentDate.getFullYear() > 2036) {
+            currentDate = new Date('2036-12-31T00:00:00');
+        }
+
+        let isEditUnlocked = false;
+        let dayData = {};
+        let currentPin = localStorage.getItem(STORAGE_KEY_PIN) || DEFAULT_PIN;
+        let isChangingPin = false;
+        let unsubscribeDay = null;
+
+        // Autenticazione iniziale in background
+        async function initAuth() {
+            try {
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    await signInWithCustomToken(auth, __initial_auth_token);
+                } else {
+                    await signInAnonymously(auth);
+                }
+            } catch (err) {
+                console.warn("Auth Firebase in locale/demo fallback:", err);
+            }
+        }
+
+        // Ascolto in tempo reale dei dati del giorno da Firebase Cloud
+        function subscribeToDayData() {
+            if (unsubscribeDay) unsubscribeDay();
+
+            const dateKey = formatDateKey(currentDate);
+            const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'schedules', dateKey);
+
+            unsubscribeDay = onSnapshot(docRef, (docSnap) => {
+                if (docSnap.exists()) {
+                    dayData = docSnap.data().hours || {};
+                } else {
+                    dayData = {};
+                }
+                renderScheduleTable();
+            }, (error) => {
+                console.warn("Errore durante l'ascolto dei dati in tempo reale:", error);
+                renderScheduleTable();
+            });
+        }
+
+        function formatDateKey(dateObj) {
+            const year = dateObj.getFullYear();
+            const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+            const day = String(dateObj.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        }
+
+        function updateDateUI() {
+            const datePicker = document.getElementById('datePicker');
+            const dateStr = formatDateKey(currentDate);
+            datePicker.value = dateStr;
+
+            const optionsDate = { day: 'numeric', month: 'long', year: 'numeric' };
+            const optionsDay = { weekday: 'long' };
+            
+            document.getElementById('currentDateDisplay').textContent = currentDate.toLocaleDateString('it-IT', optionsDate);
+            document.getElementById('currentDayOfWeek').textContent = currentDate.toLocaleDateString('it-IT', optionsDay);
+        }
+
+        window.changeDate = function(days) {
+            const newDate = new Date(currentDate);
+            newDate.setDate(newDate.getDate() + days);
+            
+            if (newDate.getFullYear() >= 2026 && newDate.getFullYear() <= 2036) {
+                currentDate = newDate;
+                updateDateUI();
+                subscribeToDayData();
+            } else {
+                showToast("Data fuori dal intervallo 2026-2036", "warning");
+            }
+        };
+
+        window.goToToday = function() {
+            const today = new Date();
+            if (today.getFullYear() >= 2026 && today.getFullYear() <= 2036) {
+                currentDate = today;
+            } else {
+                currentDate = new Date('2026-01-01T00:00:00');
+            }
+            updateDateUI();
+            subscribeToDayData();
+        };
+
+        window.onDateInputChange = function(e) {
+            if (!e.target.value) return;
+            const selected = new Date(e.target.value + 'T00:00:00');
+            if (selected.getFullYear() >= 2026 && selected.getFullYear() <= 2036) {
+                currentDate = selected;
+                updateDateUI();
+                subscribeToDayData();
+            }
+        };
+
+        function renderScheduleTable() {
+            const tbody = document.getElementById('scheduleTableBody');
+            tbody.innerHTML = '';
+
+            const now = new Date();
+            const isToday = now.toDateString() === currentDate.toDateString();
+            const currentHour = now.getHours();
+
+            for (let hour = 0; hour < 24; hour++) {
+                const hourStr = String(hour).padStart(2, '0') + ':00';
+                const hourInfo = dayData[hour] || { title: '', assignee: '', status: 'todo' };
+
+                const tr = document.createElement('tr');
+                const isCurrent = isToday && currentHour === hour;
+                
+                tr.className = `transition hover:bg-slate-800/40 ${isCurrent ? 'bg-brand-900/10 highlight-current-hour' : ''}`;
+
+                let statusBadgeClass = 'bg-slate-800 text-slate-400 border-slate-700';
+                let statusText = 'Da Fare';
+                if (hourInfo.status === 'in_progress') {
+                    statusBadgeClass = 'bg-amber-500/10 text-amber-400 border-amber-500/20';
+                    statusText = 'In Corso';
+                } else if (hourInfo.status === 'completed') {
+                    statusBadgeClass = 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20';
+                    statusText = 'Completato';
+                }
+
+                tr.innerHTML = `
+                    <td class="py-3 px-4 text-center font-mono text-slate-400 border-r border-slate-800/80 text-xs ${isCurrent ? 'text-brand-400 font-bold' : ''}">
+                        ${hourStr}
+                        ${isCurrent ? '<span class="block text-[10px] text-brand-500 uppercase tracking-wider font-sans">Ora</span>' : ''}
+                    </td>
+                    <td class="py-3 px-4">
+                        ${isEditUnlocked ? `
+                            <input type="text" value="${escapeHtml(hourInfo.title || '')}" 
+                                   onchange="window.updateCell(${hour}, 'title', this.value)"
+                                   placeholder="Aggiungi evento o nota..."
+                                   class="w-full bg-slate-950/60 border border-slate-700/60 focus:border-brand-500 text-slate-100 rounded px-3 py-1.5 text-sm focus:outline-none transition">
+                        ` : `
+                            <span class="${hourInfo.title ? 'text-slate-100 font-medium' : 'text-slate-600 italic'}">
+                                ${escapeHtml(hourInfo.title || 'Nessun evento')}
+                            </span>
+                        `}
+                    </td>
+                    <td class="py-3 px-4">
+                        ${isEditUnlocked ? `
+                            <input type="text" value="${escapeHtml(hourInfo.assignee || '')}" 
+                                   onchange="window.updateCell(${hour}, 'assignee', this.value)"
+                                   placeholder="Incaricato / Dettagli..."
+                                   class="w-full bg-slate-950/60 border border-slate-700/60 focus:border-brand-500 text-slate-200 rounded px-3 py-1.5 text-xs focus:outline-none transition">
+                        ` : `
+                            <span class="text-slate-400 text-xs">
+                                ${escapeHtml(hourInfo.assignee || '-')}
+                            </span>
+                        `}
+                    </td>
+                    <td class="py-3 px-4 text-center">
+                        ${isEditUnlocked ? `
+                            <select onchange="window.updateCell(${hour}, 'status', this.value)" 
+                                    class="bg-slate-950 border border-slate-700 text-xs rounded-lg px-2 py-1.5 text-slate-300 focus:outline-none focus:border-brand-500">
+                                <option value="todo" ${hourInfo.status === 'todo' ? 'selected' : ''}>Da Fare</option>
+                                <option value="in_progress" ${hourInfo.status === 'in_progress' ? 'selected' : ''}>In Corso</option>
+                                <option value="completed" ${hourInfo.status === 'completed' ? 'selected' : ''}>Completato</option>
+                            </select>
+                        ` : `
+                            <span class="inline-block px-2.5 py-1 rounded-full text-xs font-semibold border ${statusBadgeClass}">
+                                ${statusText}
+                            </span>
+                        `}
+                    </td>
+                    ${isEditUnlocked ? `
+                        <td class="py-3 px-4 text-center">
+                            <button onclick="window.clearHour(${hour})" class="text-slate-500 hover:text-rose-400 p-1 transition" title="Cancella riga">
+                                <i class="fa-solid fa-trash-can"></i>
+                            </button>
+                        </td>
+                    ` : ''}
+                `;
+
+                tbody.appendChild(tr);
+            }
+        }
+
+        function escapeHtml(text) {
+            return text.replace(/[&<>"']/g, function(m) {
+                return {
+                    '&': '&amp;',
+                    '<': '&lt;',
+                    '>': '&gt;',
+                    '"': '&quot;',
+                    "'": '&#039;'
+                }[m];
+            });
+        }
+
+        // Salvataggio istantaneo su Cloud Firebase
+        window.updateCell = async function(hour, field, value) {
+            if (!isEditUnlocked) return;
+            
+            if (!dayData[hour]) {
+                dayData[hour] = { title: '', assignee: '', status: 'todo' };
+            }
+
+            dayData[hour][field] = value;
+
+            // Rimuovi la riga se lasciata interamente vuota
+            if (!dayData[hour].title && !dayData[hour].assignee && dayData[hour].status === 'todo') {
+                delete dayData[hour];
+            }
+
+            await saveDayToCloud();
+        };
+
+        window.clearHour = async function(hour) {
+            if (!isEditUnlocked) return;
+            if (dayData[hour]) {
+                delete dayData[hour];
+                await saveDayToCloud();
+                showToast("Ora svuotata", "info");
+            }
+        };
+
+        window.clearCurrentDay = async function() {
+            if (!isEditUnlocked) return;
+            dayData = {};
+            await saveDayToCloud();
+            showToast("Giorno resettato", "success");
+        };
+
+        async function saveDayToCloud() {
+            const dateKey = formatDateKey(currentDate);
+            const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'schedules', dateKey);
+            try {
+                await setDoc(docRef, { hours: dayData }, { merge: true });
+            } catch (e) {
+                console.error("Errore salvataggio Cloud:", e);
+                showToast("Errore di sincronizzazione Cloud", "warning");
+            }
+        }
+
+        // Modale Autenticazione (PIN predefinito: leovincenzo11)
+        window.toggleAuthModal = function() {
+            if (isEditUnlocked) {
+                isEditUnlocked = false;
+                updateAuthStatusUI();
+                renderScheduleTable();
+                showToast("Modalità Modifica bloccata", "info");
+            } else {
+                isChangingPin = false;
+                document.getElementById('modalTitle').textContent = "Accesso Autorizzato";
+                document.getElementById('modalSub').textContent = "Inserisci la parola d'ordine per modificare";
+                document.getElementById('pinInput').value = '';
+                document.getElementById('modalError').classList.add('hidden');
+                document.getElementById('changePinOption').classList.add('hidden');
+                document.getElementById('authModal').classList.remove('hidden');
+                document.getElementById('pinInput').focus();
+            }
+        };
+
+        window.closeAuthModal = function() {
+            document.getElementById('authModal').classList.add('hidden');
+        };
+
+        window.handleAuthSubmit = function(e) {
+            e.preventDefault();
+            const enteredPin = document.getElementById('pinInput').value;
+
+            if (isChangingPin) {
+                if (enteredPin.trim().length < 4) {
+                    showModalError("Il PIN deve contenere almeno 4 caratteri");
+                    return;
+                }
+                currentPin = enteredPin;
+                localStorage.setItem(STORAGE_KEY_PIN, currentPin);
+                closeAuthModal();
+                showToast("PIN aggiornato con successo!", "success");
+                return;
+            }
+
+            if (enteredPin === currentPin) {
+                isEditUnlocked = true;
+                updateAuthStatusUI();
+                closeAuthModal();
+                renderScheduleTable();
+                showToast("Sbloccato! Ora puoi modificare la tabella", "success");
+            } else {
+                showModalError("PIN errato. Riprova.");
+            }
+        };
+
+        function showModalError(msg) {
+            const errEl = document.getElementById('modalError');
+            errEl.textContent = msg;
+            errEl.classList.remove('hidden');
+        }
+
+        window.toggleChangePinMode = function() {
+            isChangingPin = true;
+            document.getElementById('modalTitle').textContent = "Cambia Password PIN";
+            document.getElementById('modalSub').textContent = "Inserisci il nuovo PIN";
+            document.getElementById('pinInput').value = '';
+            document.getElementById('modalError').classList.add('hidden');
+            document.getElementById('changePinOption').classList.add('hidden');
+        };
+
+        function updateAuthStatusUI() {
+            const statusBadge = document.getElementById('statusBadge');
+            const authBtn = document.getElementById('authBtn');
+            const authBtnText = document.getElementById('authBtnText');
+            const authBtnIcon = document.getElementById('authBtnIcon');
+            const actionsHeader = document.getElementById('actionsHeader');
+            const clearDayBtn = document.getElementById('clearDayBtn');
+            const changePinOption = document.getElementById('changePinOption');
+
+            if (isEditUnlocked) {
+                statusBadge.className = "hidden sm:flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20";
+                statusBadge.innerHTML = '<i class="fa-solid fa-lock-open mr-1.5"></i> Modifica Abilitata';
+
+                authBtn.className = "px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-sm font-medium transition flex items-center gap-2 shadow-md shadow-emerald-600/20";
+                authBtnText.textContent = "Blocca Tabella";
+                authBtnIcon.className = "fa-solid fa-lock text-white";
+
+                actionsHeader.classList.remove('hidden');
+                clearDayBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+                clearDayBtn.disabled = false;
+                changePinOption.classList.remove('hidden');
+            } else {
+                statusBadge.className = "hidden sm:flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-amber-500/10 text-amber-400 border border-amber-500/20";
+                statusBadge.innerHTML = '<i class="fa-solid fa-lock mr-1.5"></i> Solo Lettura';
+
+                authBtn.className = "px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-lg text-sm font-medium transition flex items-center gap-2 shadow-sm";
+                authBtnText.textContent = "Sblocca Modifica";
+                authBtnIcon.className = "fa-solid fa-key text-amber-400";
+
+                actionsHeader.classList.add('hidden');
+                clearDayBtn.classList.add('opacity-50', 'cursor-not-allowed');
+                clearDayBtn.disabled = true;
+                changePinOption.classList.add('hidden');
+            }
+        }
+
+        window.handleSearch = function() {
+            const query = document.getElementById('searchInput').value.toLowerCase().trim();
+            const rows = document.querySelectorAll('#scheduleTableBody tr');
+
+            rows.forEach(row => {
+                const text = row.textContent.toLowerCase();
+                if (!query || text.includes(query)) {
+                    row.style.display = '';
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+        };
+
+        window.exportData = function() {
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(dayData, null, 2));
+            const downloadAnchor = document.createElement('a');
+            downloadAnchor.setAttribute("href", dataStr);
+            downloadAnchor.setAttribute("download", `agenda_${formatDateKey(currentDate)}.json`);
+            document.body.appendChild(downloadAnchor);
+            downloadAnchor.click();
+            downloadAnchor.remove();
+            showToast("Backup scaricato!", "success");
+        };
+
+        function showToast(message, type = 'info') {
+            const toast = document.getElementById('toast');
+            const toastMessage = document.getElementById('toastMessage');
+            const toastIcon = document.getElementById('toastIcon');
+
+            toastMessage.textContent = message;
+
+            if (type === 'success') {
+                toastIcon.className = "fa-solid fa-circle-check text-emerald-400";
+            } else if (type === 'warning') {
+                toastIcon.className = "fa-solid fa-triangle-exclamation text-amber-400";
+            } else {
+                toastIcon.className = "fa-solid fa-circle-info text-brand-400";
+            }
+
+            toast.classList.remove('translate-y-20', 'opacity-0');
+            toast.classList.add('translate-y-0', 'opacity-100');
+
+            setTimeout(() => {
+                toast.classList.remove('translate-y-0', 'opacity-100');
+                toast.classList.add('translate-y-20', 'opacity-0');
+            }, 3000);
+        }
+
+        // Avvio dell'app al caricamento della pagina
+        window.onload = async function() {
+            await initAuth();
+            updateDateUI();
+            subscribeToDayData();
+            
+            // Timer aggiornamento evidenziazione ora corrente
+            setInterval(() => {
+                renderScheduleTable();
+            }, 60000);
+        };
+    </script>
+</body>
+</html>
